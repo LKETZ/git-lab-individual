@@ -1,127 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Electricity Usage Dashboard - Krabi 2566</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <title>Electricity Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #020617);
+      color: #e5e7eb;
+    }
+
+    header {
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    header p {
+      margin-top: 0.5rem;
+      opacity: 0.8;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 1.5rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      padding: 1.2rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 1rem;
+      opacity: 0.85;
+    }
+
+    .card .value {
+      margin-top: 0.6rem;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    canvas {
+      background: rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.8rem;
+      opacity: 0.6;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body>
 
-    <div class="container mx-auto px-4 py-8">
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Electricity Statistics Dashboard</h1>
-            <p class="text-gray-600" id="province-title">Province: Loading...</p>
-        </header>
+<header>
+  <h1>⚡ Electricity Dashboard</h1>
+  <p id="province">Loading data...</p>
+</header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase">Total Residential Users</h3>
-                <p id="total-users" class="text-2xl font-bold text-gray-800">-</p>
-            </div>
-            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase">Total Residential Usage (kWh)</h3>
-                <p id="total-usage" class="text-2xl font-bold text-gray-800">-</p>
-            </div>
-            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
-                <h3 class="text-sm font-semibold text-gray-500 uppercase">EV Charging Stations</h3>
-                <p id="ev-count" class="text-2xl font-bold text-gray-800">-</p>
-            </div>
-        </div>
+<div class="container">
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-semibold mb-4 text-gray-700">User Distribution by Category</h3>
-                <canvas id="usersChart"></canvas>
-            </div>
+  <!-- Summary cards -->
+  <div class="cards" id="summary"></div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-semibold mb-4 text-gray-700">Electricity Usage (kWh) by Category</h3>
-                <canvas id="usageChart"></canvas>
-            </div>
-        </div>
-    </div>
+  <!-- Charts -->
+  <div class="charts">
+    <canvas id="usersChart"></canvas>
+    <canvas id="usageChart"></canvas>
+  </div>
 
-    <script>
-        async function loadDashboard() {
-            try {
-                // 1. Fetch data from JSON files
-                // หมายเหตุ: ในการรันจริง ไฟล์ JSON ต้องอยู่ในโฟลเดอร์เดียวกับ index.html
-                const [usersRes, usageRes] = await Promise.all([
-                    fetch('electricity_users_en.json'),
-                    fetch('electricity_usages_en.json')
-                ]);
+</div>
 
-                const usersData = await usersRes.json();
-                const usageDataRaw = await usageRes.json();
-                const usageData = usageDataRaw.Sheet1[0]; // เข้าถึง object แรกใน Sheet1
+<footer>
+  EGCO344 • GitHub Practice
+</footer>
 
-                // 2. Update Summary Cards
-                document.getElementById('province-title').innerText = `Province: ${usersData.province_name} (${usersData.year})`;
-                document.getElementById('total-users').innerText = usersData.residential_count.toLocaleString();
-                document.getElementById('total-usage').innerText = usageData.residential_kwh.toLocaleString();
-                document.getElementById('ev-count').innerText = usersData.ev_charging_count;
+<script>
+  let userLabels = [];
+  let userValues = [];
+  let usageLabels = [];
+  let usageValues = [];
 
-                // 3. Prepare Data for Charts
-                const labels = ['Residential', 'Small Biz', 'Medium Biz', 'Large Biz', 'Specialized', 'Public Elec'];
-                
-                const userCounts = [
-                    usersData.residential_count,
-                    usersData.small_business_count,
-                    usersData.medium_business_count,
-                    usersData.large_business_count,
-                    usersData.specialized_business_count,
-                    usersData.public_electricity_count
-                ];
+  // -------- USERS ----------
+  fetch("electricity_users_en.json")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("province").innerText =
+        `${data.province_name} • Year ${data.year}`;
 
-                const usageValues = [
-                    usageData.residential_kwh,
-                    usageData.small_business_kwh,
-                    usageData.medium_business_kwh,
-                    usageData.large_business_kwh,
-                    usageData.specialized_business_kwh,
-                    usageData.public_electricity_kwh
-                ];
+      const summary = document.getElementById("summary");
 
-                // 4. Create User Distribution Chart (Pie)
-                new Chart(document.getElementById('usersChart'), {
-                    type: 'pie',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: userCounts,
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b']
-                        }]
-                    }
-                });
+      const users = {
+        Residential: data.residential_count,
+        "Small Business": data.small_business_count,
+        "Medium Business": data.medium_business_count,
+        "Large Business": data.large_business_count,
+        "Public Electricity": data.public_electricity_count,
+        "EV Charging": data.ev_charging_count
+      };
 
-                // 5. Create Usage Comparison Chart (Bar)
-                new Chart(document.getElementById('usageChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'kWh',
-                            data: usageValues,
-                            backgroundColor: '#3b82f6'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: { beginAtZero: true }
-                        }
-                    }
-                });
+      for (let key in users) {
+        userLabels.push(key);
+        userValues.push(users[key]);
 
-            } catch (error) {
-                console.error('Error loading data:', error);
-                document.body.innerHTML = `<div class="p-10 text-center text-red-500">Error loading JSON files. Please ensure you are running this through a local server.</div>`;
-            }
+        summary.innerHTML += `
+          <div class="card">
+            <h3>${key}</h3>
+            <div class="value">${users[key].toLocaleString()}</div>
+          </div>
+        `;
+      }
+
+      new Chart(document.getElementById("usersChart"), {
+        type: "pie",
+        data: {
+          labels: userLabels,
+          datasets: [{
+            data: userValues
+          }]
         }
+      });
+    });
 
-        loadDashboard();
-    </script>
+  // -------- USAGE ----------
+  fetch("electricity_usages_en.json")
+    .then(res => res.json())
+    .then(json => {
+      const data = json.Sheet1[0];
+
+      const usages = {
+        Residential: data.residential_kwh,
+        "Small Business": data.small_business_kwh,
+        "Medium Business": data.medium_business_kwh,
+        "Large Business": data.large_business_kwh,
+        "Public Electricity": data.public_electricity_kwh,
+        "EV Charging": data.ev_charging_kwh
+      };
+
+      for (let key in usages) {
+        usageLabels.push(key);
+        usageValues.push(usages[key]);
+      }
+
+      new Chart(document.getElementById("usageChart"), {
+        type: "bar",
+        data: {
+          labels: usageLabels,
+          datasets: [{
+            label: "Electricity Usage (kWh)",
+            data: usageValues
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              ticks: {
+                callback: value => value.toLocaleString()
+              }
+            }
+          }
+        }
+      });
+    });
+</script>
+
 </body>
 </html>
