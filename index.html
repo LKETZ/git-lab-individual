@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electricity Usage Dashboard - Krabi 2566</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Electricity Statistics Dashboard</h1>
+            <p class="text-gray-600" id="province-title">Province: Loading...</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase">Total Residential Users</h3>
+                <p id="total-users" class="text-2xl font-bold text-gray-800">-</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase">Total Residential Usage (kWh)</h3>
+                <p id="total-usage" class="text-2xl font-bold text-gray-800">-</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase">EV Charging Stations</h3>
+                <p id="ev-count" class="text-2xl font-bold text-gray-800">-</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700">User Distribution by Category</h3>
+                <canvas id="usersChart"></canvas>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700">Electricity Usage (kWh) by Category</h3>
+                <canvas id="usageChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadDashboard() {
+            try {
+                // 1. Fetch data from JSON files
+                // หมายเหตุ: ในการรันจริง ไฟล์ JSON ต้องอยู่ในโฟลเดอร์เดียวกับ index.html
+                const [usersRes, usageRes] = await Promise.all([
+                    fetch('electricity_users_en.json'),
+                    fetch('electricity_usages_en.json')
+                ]);
+
+                const usersData = await usersRes.json();
+                const usageDataRaw = await usageRes.json();
+                const usageData = usageDataRaw.Sheet1[0]; // เข้าถึง object แรกใน Sheet1
+
+                // 2. Update Summary Cards
+                document.getElementById('province-title').innerText = `Province: ${usersData.province_name} (${usersData.year})`;
+                document.getElementById('total-users').innerText = usersData.residential_count.toLocaleString();
+                document.getElementById('total-usage').innerText = usageData.residential_kwh.toLocaleString();
+                document.getElementById('ev-count').innerText = usersData.ev_charging_count;
+
+                // 3. Prepare Data for Charts
+                const labels = ['Residential', 'Small Biz', 'Medium Biz', 'Large Biz', 'Specialized', 'Public Elec'];
+                
+                const userCounts = [
+                    usersData.residential_count,
+                    usersData.small_business_count,
+                    usersData.medium_business_count,
+                    usersData.large_business_count,
+                    usersData.specialized_business_count,
+                    usersData.public_electricity_count
+                ];
+
+                const usageValues = [
+                    usageData.residential_kwh,
+                    usageData.small_business_kwh,
+                    usageData.medium_business_kwh,
+                    usageData.large_business_kwh,
+                    usageData.specialized_business_kwh,
+                    usageData.public_electricity_kwh
+                ];
+
+                // 4. Create User Distribution Chart (Pie)
+                new Chart(document.getElementById('usersChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: userCounts,
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b']
+                        }]
+                    }
+                });
+
+                // 5. Create Usage Comparison Chart (Bar)
+                new Chart(document.getElementById('usageChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'kWh',
+                            data: usageValues,
+                            backgroundColor: '#3b82f6'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.body.innerHTML = `<div class="p-10 text-center text-red-500">Error loading JSON files. Please ensure you are running this through a local server.</div>`;
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
